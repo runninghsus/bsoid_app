@@ -104,7 +104,7 @@ if not last_run:
 #         st.error('Please enter a name for your variable file name prefix.')
     username = st.text_input('Enter name:')
     try:
-        os.system("sudo mkdir /home/username")
+        os.system(str.join('', ('sudo mkdir /home/', username))
     except FileExistsError:
         st.error('This username exists.')
         if st.checkbox('Was that you?', False):
@@ -114,13 +114,15 @@ if not last_run:
     # Pre-processing
     st.subheader('Find your data')
     no_dir = int(st.number_input('How many files for training?', value=3))
-    training_files = []
+    df = []
     for i in range(no_dir):
-        training_file = st.file_uploader('Upload your data', encoding='csv')
-        training_files.append(training_file)
-    st.markdown('You have selected training files *{}*.'.format(training_files))
+        training_file = st.file_uploader('Upload your data', type=['csv'], key=str(i))
+        curr_df = pd.read_csv(training_file, low_memory=False)
+        df.append(curr_df)
+    # st.markdown('You have selected training files *{}*.'.format(training_files))
     # csv_rep = glob.glob(BASE_PATH + TRAIN_FOLDERS[0] + '/*.csv')
-    curr_df = pd.read_csv(training_files[0], low_memory=False)
+    curr_df = df[0]
+    st.write(curr_df)
     currdf = np.array(curr_df)
     st.subheader('__Pre-process__ the low-likelihood estimations as a representation of occlusion coordinates.')
     st.text_area('', '''
@@ -141,17 +143,15 @@ if not last_run:
         # for i, fd in enumerate(TRAIN_FOLDERS):  # Loop through folders
         #     f = get_filenames(BASE_PATH, fd)
         my_bar = st.progress(0)
-        for j, filename in enumerate(training_files):
-            curr_df = pd.read_csv(filename, low_memory=False)
-            curr_df_filt, perc_rect = adp_filt(curr_df, BODYPARTS)
+        for j in range(len(df)):
+            curr_df_filt, perc_rect = adp_filt(df[j], BODYPARTS)
             rawdata_li.append(curr_df)
             perc_rect_li.append(perc_rect)
             data_li.append(curr_df_filt)
-            my_bar.progress(round((j + 1) / len(training_files) * 100))
-            filenames.append(filename)
+            my_bar.progress(round((j + 1) / len(df) * 100))
         training_data = np.array(data_li)
         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_data.sav'))), 'wb') as f:
-            joblib.dump([BODYPARTS, filenames, rawdata_li, training_data, perc_rect_li], f)
+            joblib.dump([BODYPARTS, rawdata_li, training_data, perc_rect_li], f)
         st.info('Processed a total of **{}** CSV files, and compiled into a **{}** data list.'.format(len(data_li),
                                                                                                       training_data.shape))
         st.balloons()
