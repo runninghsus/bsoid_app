@@ -401,7 +401,7 @@ if st.button('Export'):
         soft_clust_prob = pd.DataFrame(soft_clusters)
         training_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('features_labels_10Hz', timestr, '.csv')))),
                              index=True, chunksize=10000, encoding='utf-8')
-        training_csv = training_data.to_csv(index=False)
+        training_csv = training_data.to_csv(index=True)
         b64 = base64.b64encode(training_csv.encode()).decode()  # some strings <-> bytes conversions necessary here
         href2 = f'<a href="data:file/csv;base64,{b64}" download="features_labels_10Hz.csv"> Download 10Hz Feature with Labels CSV File</a>'
         st.markdown(href2, unsafe_allow_html=True)
@@ -472,8 +472,9 @@ else:
     if pred_options == 'Generate predictions and corresponding videos':
         csv_file = st.file_uploader('Upload csv file', type=['csv'])
         vid_file = st.file_uploader('Upload corresponding video (.mp4 or .avi) file', type=['mp4', 'avi'])
-        st.markdown('You have selected **{}** as your video matching **{}**.'.format(vid_file, csv_file))
-        csvname = os.path.basename(csv_file).rpartition('.')[0]
+        curr_df = pd.read_csv(csv_file, header=None, low_memory=False)
+        currdf = np.array(curr_df)
+        csvname = currdf[0, 1]
         try:
             os.mkdir(str.join('', (OUTPUT_PATH, '/pngs')))
         except FileExistsError:
@@ -483,8 +484,13 @@ else:
         except FileExistsError:
             pass
         frame_dir = str.join('', (OUTPUT_PATH, '/pngs', '/', csvname))
-        st.markdown('You have created **{}** as your PNG directory for video {}.'.format(frame_dir, vid_file))
-        probe = ffmpeg.probe(vid_file)
+        g = io.BytesIO(vid_file.read())  ## BytesIO Object
+        vidname = st.text_input('Enter a name for video:')
+        temporary_location = str.join('', (OUTPUT_PATH, '/temp', '/', vidname))
+        with open(temporary_location, 'wb') as out:  ## Open temporary file as bytes
+            out.write(g.read())  ## Read bytes into file
+        st.markdown('You have created **{}** as your PNG directory for video {}.'.format(frame_dir, vidname))
+        probe = ffmpeg.probe(temporary_location)
         video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
         width = int(video_info['width'])
         height = int(video_info['height'])
@@ -493,13 +499,13 @@ else:
         avg_frame_rate = round(int(video_info['avg_frame_rate'].rpartition('/')[0]) / int(video_info['avg_frame_rate'].rpartition('/')[2]))
         if st.button('Start frame extraction for {} frames at {} frames per second'.format(num_frames, avg_frame_rate)):
             try:
-                (ffmpeg.input(vid_file)
+                (ffmpeg.input(temporary_location)
                  .filter('fps', fps=avg_frame_rate)
                  .output(str.join('', (frame_dir, '/frame%01d.png')), video_bitrate=bit_rate,
                          s=str.join('', (str(int(width * 0.5)), 'x', str(int(height * 0.5)))), sws_flags='bilinear',
                          start_number=0)
                  .run(capture_stdout=True, capture_stderr=True))
-                st.info('Done extracting **{}** frames from video **{}**.'.format(num_frames, vid_file))
+                st.info('Done extracting **{}** frames from video **{}**.'.format(num_frames, vidname))
             except ffmpeg.Error as e:
                 print('stdout:', e.stdout.decode('utf8'))
                 print('stderr:', e.stderr.decode('utf8'))
@@ -508,12 +514,12 @@ else:
         except FileExistsError:
             pass
         try:
-            os.mkdir(str.join('', (OUTPUT_PATH, '/mp4s', '/', csvname)))
+            os.mkdir(str.join('', (OUTPUT_PATH, '/mp4s', '/', vidname)))
         except FileExistsError:
             pass
-        shortvid_dir = str.join('', (OUTPUT_PATH, '/mp4s', '/', csvname))
+        shortvid_dir = str.join('', (OUTPUT_PATH, '/mp4s', '/', vidname))
         st.markdown('You have created **{}** as your .mp4 directory '
-                    'for group examples from video {}.'.format(shortvid_dir, vid_file))
+                    'for group examples from video {}.'.format(shortvid_dir, vidname))
         min_time = st.number_input('Enter minimum time for bout in ms:', value=100)
         min_frames = round(float(min_time) * 0.001 * float(FPS))
         st.markdown('You have entered **{} ms** as your minimum duration per bout, '
