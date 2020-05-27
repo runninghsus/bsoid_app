@@ -39,78 +39,34 @@ st.video(video_bytes)
 
 # Load previous run?
 if st.sidebar.checkbox("Load previous run? This resumes training, or can load previously trained network for new analysis.", False):
-    OUTPUT_PATH = st.sidebar.text_input('Enter the prior run output directory:')
+    OUTPUT_PATH = st.sidebar.text_input('Enter the prior run username:')
     try:
         os.listdir(OUTPUT_PATH)
         st.markdown(
-            'You have selected **{}** as your prior run root directory.'.format(OUTPUT_PATH))
+            'You have selected **{}** as your prior run username.'.format(OUTPUT_PATH))
     except FileNotFoundError:
         st.error('No such directory')
-    MODEL_NAME = st.sidebar.text_input('Enter your prior run variable file prefix:')
+    MODEL_NAME = st.sidebar.text_input('Enter your prior run animal model name:')
     if MODEL_NAME:
-        st.markdown('You have selected **{}_XXX.sav** as your prior variable files.'.format(str(MODEL_NAME)))
+        st.markdown('You have selected **{}_XXX.sav** as your prior animal model name.'.format(str(MODEL_NAME)))
     else:
-        st.error('Please enter a prefix name for prior run variable file.')
+        st.error('Please enter a prefix name for prior run animal model name.')
     last_run = True
 else:
     last_run = False
 
 if not last_run:
-#     # Setting things up
-#     # BASE_PATH, TRAIN_FOLDERS, FPS, OUTPUT_PATH and MODEL_NAME designations
-#
-#
-#     st.write('The __BASE PATH__ contains multiple nested directories.')
-#     BASE_PATH = st.text_input('Enter a BASE PATH:')
-#     try:
-#         os.listdir(BASE_PATH)
-#         st.markdown(
-#             'You have selected **{}** as your root directory for training/testing sub-directories.'.format(BASE_PATH))
-#     except FileNotFoundError:
-#         st.error('No such directory')
-#     st.write('The __sub-directory(ies)__ each contain one or more .csv files. '
-#              'Currently supporting _2D_ and _single_ animal.')
-#     TRAIN_FOLDERS = []
-#     no_dir = int(st.number_input('How many BASE_PATH/SUB-DIRECTORIES for training?', value=3))
-#     st.markdown('Your will be training on **{}** csv containing sub-directories.'.format(no_dir))
-#     for i in range(no_dir):
-#         training_dir = st.text_input('Enter path to training directory NUMBER {} within base path:'.format(i + 1))
-#         try:
-#             os.listdir(str.join('', (BASE_PATH, training_dir)))
-#         except FileNotFoundError:
-#             st.error('No such directory')
-#         if not training_dir in TRAIN_FOLDERS:
-#             TRAIN_FOLDERS.append(training_dir)
-#     st.markdown('You have selected **sub-directory(ies)** *{}*.'.format(TRAIN_FOLDERS))
-#     st.write('Average __frame-rate__ for these processed .csv files. '
-#              'Your pose estimation will be integrated over 100ms. '
-#              'For most animal behaviors, static poses per 100ms appears to capture _sufficient information_ '
-#              'for behavioral clustering while maintaining _high temporal resolution._')
-#     FPS = int(st.number_input('What is your frame-rate?', value=60))
-#     st.markdown('Your framerate is **{}** frames per second.'.format(FPS))
-#     st.write('The __output directory__ will store B-SOID clustering _variable_ files and .csv _analyses_.')
-#     OUTPUT_PATH = st.text_input('Enter an output directory:')
-#     try:
-#         os.listdir(OUTPUT_PATH)
-#         st.markdown('You have selected **{}** to store results.'.format(str(OUTPUT_PATH)))
-#     except FileNotFoundError:
-#         st.error('No such directory, was there a typo or did you forget to create one?')
-#     st.write('For each run, computed variables are stored as __.sav files__. '
-#              'If you type in the same variable prefix as last run, your _workspace_ will be loaded.')
-#     MODEL_NAME = st.text_input('Enter a variable file name prefix:')
-#     if MODEL_NAME:
-#         st.markdown('You have named **{}_XXX.sav** as the variable files.'.format(str(MODEL_NAME)))
-#     else:
-#         st.error('Please enter a name for your variable file name prefix.')
-    username = st.text_input('Enter name:')
+    username = st.text_input('Enter username:')
     try:
-        os.system(str.join('', ('sudo mkdir /home/', username))
+        os.mkdir(str.join('', ('/home', '/', username)))
     except FileExistsError:
         st.error('This username exists.')
         if st.checkbox('Was that you?', False):
             st.write('Welcome back!')
     OUTPUT_PATH = str.join('', ('/home', '/', username))
-    MODEL_NAME = st.text_input('Enter model name:')
+    MODEL_NAME = st.text_input('Enter animal model name:')
+
+
     # Pre-processing
     st.subheader('Find your data')
     no_dir = int(st.number_input('How many files for training?', value=3))
@@ -119,11 +75,14 @@ if not last_run:
         training_file = st.file_uploader('Upload your data', type=['csv'], key=str(i))
         curr_df = pd.read_csv(training_file, low_memory=False)
         df.append(curr_df)
-    # st.markdown('You have selected training files *{}*.'.format(training_files))
-    # csv_rep = glob.glob(BASE_PATH + TRAIN_FOLDERS[0] + '/*.csv')
     curr_df = df[0]
-    st.write(curr_df)
     currdf = np.array(curr_df)
+    st.write('Average __frame-rate__ for these processed .csv files. '
+             'Your pose estimation will be integrated over 100ms. '
+             'For most animal behaviors, static poses per 100ms appears to capture _sufficient information_ '
+             'for behavioral clustering while maintaining _high temporal resolution._')
+    FPS = int(st.number_input('What is your frame-rate?', value=60))
+    st.markdown('Your framerate is **{}** frames per second.'.format(FPS))
     st.subheader('__Pre-process__ the low-likelihood estimations as a representation of occlusion coordinates.')
     st.text_area('', '''
     Within each .csv file, the algorithm finds the best likelihood cutoff for each body part.
@@ -140,8 +99,6 @@ if not last_run:
         rawdata_li = []
         data_li = []
         perc_rect_li = []
-        # for i, fd in enumerate(TRAIN_FOLDERS):  # Loop through folders
-        #     f = get_filenames(BASE_PATH, fd)
         my_bar = st.progress(0)
         for j in range(len(df)):
             curr_df_filt, perc_rect = adp_filt(df[j], BODYPARTS)
@@ -151,194 +108,178 @@ if not last_run:
             my_bar.progress(round((j + 1) / len(df) * 100))
         training_data = np.array(data_li)
         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_data.sav'))), 'wb') as f:
-            joblib.dump([BODYPARTS, rawdata_li, training_data, perc_rect_li], f)
+            joblib.dump([FPS, BODYPARTS, rawdata_li, training_data, perc_rect_li], f)
         st.info('Processed a total of **{}** CSV files, and compiled into a **{}** data list.'.format(len(data_li),
                                                                                                       training_data.shape))
         st.balloons()
     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_data.sav'))), 'rb') as fr:
-        BASE_PATH, FPS, BODYPARTS, filenames, rawdata_li, training_data, perc_rect_li = joblib.load(fr)
+        FPS, BODYPARTS, rawdata_li, training_data, perc_rect_li = joblib.load(fr)
     if st.checkbox('Show % body part processed per file?', False):
         st.write('This line chart shows __% body part below file-based threshold__')
         subllh_percent = pd.DataFrame(perc_rect_li)
         st.bar_chart(subllh_percent)
-    # st.write('This allows you to scroll through and visualize raw vs processed data.')
-    # if st.checkbox("Show raw & processed data?", False):
-    #     try:
-    #         ID = int(st.number_input('Enter csv/data-list index:', min_value=1, max_value=len(rawdata_li), value=1))
-    #         st.markdown('This is file *{}*.'.format(filenames[ID - 1]))
-    #         st.write(rawdata_li[ID - 1])
-    #         st.write(training_data[ID - 1])
-    #     except:
-    #         pass
 
-# if last_run:
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_data.sav'))), 'rb') as fr:
-#         BASE_PATH, FPS, BODYPARTS, filenames, rawdata_li, training_data, perc_rect_li = joblib.load(fr)
-#     if st.checkbox('Show % body part processed per file?', False):
-#         st.write('This line chart shows __% body part below file-based threshold__')
-#         subllh_percent = pd.DataFrame(perc_rect_li)
-#         st.bar_chart(subllh_percent)
-#     st.markdown('**_CHECK POINT_**: Processed a total of **{}** CSV files, '
-#                 'and compiled into a **{}** data list.'.format(len(rawdata_li), training_data.shape))
-#     st.write('This allows you to scroll through and visualize raw vs processed data.')
-#     if st.checkbox("Show raw & processed data?", False):
-#         try:
-#             ID = int(st.number_input('Enter csv/data-list index:', min_value=1, max_value=len(rawdata_li), value=1))
-#             st.write(rawdata_li[ID - 1])
-#             st.write(training_data[ID - 1])
-#         except:
-#             pass
-#
-# # Feature extraction + UMAP
-# st.subheader('Perform __dimensionality reduction__ to improve clustering.')
-# st.text_area('', '''
-# For each body part, find the distance to all others, the angular change between these distances, and its displacement over time.
-# That is A LOT of dimensions, so reducing it is necessary.
-# ''')
-# if st.button("Start dimensionality reduction"):
-#     win_len = np.int(np.round(0.05 / (1 / FPS)) * 2 - 1)
-#     feats = []
-#     my_bar = st.progress(0)
-#     for m in range(len(training_data)):
-#         dataRange = len(training_data[m])
-#         dxy_r = []
-#         dis_r = []
-#         for r in range(dataRange):
-#             if r < dataRange - 1:
-#                 dis = []
-#                 for c in range(0, training_data[m].shape[1], 2):
-#                     dis.append(np.linalg.norm(training_data[m][r + 1, c:c + 2] - training_data[m][r, c:c + 2]))
-#                 dis_r.append(dis)
-#             dxy = []
-#             for i, j in itertools.combinations(range(0, training_data[m].shape[1], 2), 2):
-#                 dxy.append(training_data[m][r, i:i + 2] - training_data[m][r, j:j + 2])
-#             dxy_r.append(dxy)
-#         dis_r = np.array(dis_r)
-#         dxy_r = np.array(dxy_r)
-#         dis_smth = []
-#         dxy_eu = np.zeros([dataRange, dxy_r.shape[1]])
-#         ang = np.zeros([dataRange - 1, dxy_r.shape[1]])
-#         dxy_smth = []
-#         ang_smth = []
-#         for l in range(dis_r.shape[1]):
-#             dis_smth.append(boxcar_center(dis_r[:, l], win_len))
-#         for k in range(dxy_r.shape[1]):
-#             for kk in range(dataRange):
-#                 dxy_eu[kk, k] = np.linalg.norm(dxy_r[kk, k, :])
-#                 if kk < dataRange - 1:
-#                     b_3d = np.hstack([dxy_r[kk + 1, k, :], 0])
-#                     a_3d = np.hstack([dxy_r[kk, k, :], 0])
-#                     c = np.cross(b_3d, a_3d)
-#                     ang[kk, k] = np.dot(np.dot(np.sign(c[2]), 180) / np.pi,
-#                                         math.atan2(np.linalg.norm(c),
-#                                                    np.dot(dxy_r[kk, k, :], dxy_r[kk + 1, k, :])))
-#             dxy_smth.append(boxcar_center(dxy_eu[:, k], win_len))
-#             ang_smth.append(boxcar_center(ang[:, k], win_len))
-#         dis_smth = np.array(dis_smth)
-#         dxy_smth = np.array(dxy_smth)
-#         ang_smth = np.array(ang_smth)
-#         feats.append(np.vstack((dxy_smth[:, 1:], ang_smth, dis_smth)))
-#         my_bar.progress(round((m + 1) / len(training_data) * 100))
-#     st.info('Done extracting features from a total of **{}** training CSV files.'.format(len(training_data)))
-#     for n in range(0, len(feats)):
-#         feats1 = np.zeros(len(training_data[n]))
-#         for k in range(round(FPS / 10), len(feats[n][0]), round(FPS / 10)):
-#             if k > round(FPS / 10):
-#                 feats1 = np.concatenate((feats1.reshape(feats1.shape[0], feats1.shape[1]),
-#                                          np.hstack((np.mean((feats[n][0:dxy_smth.shape[0],
-#                                                              range(k - round(FPS / 10), k)]), axis=1),
-#                                                     np.sum((feats[n][dxy_smth.shape[0]:feats[n].shape[0],
-#                                                             range(k - round(FPS / 10), k)]),
-#                                                            axis=1))).reshape(len(feats[0]), 1)), axis=1)
-#             else:
-#                 feats1 = np.hstack((np.mean((feats[n][0:dxy_smth.shape[0], range(k - round(FPS / 10), k)]), axis=1),
-#                                     np.sum((feats[n][dxy_smth.shape[0]:feats[n].shape[0],
-#                                             range(k - round(FPS / 10), k)]), axis=1))).reshape(len(feats[0]), 1)
-#         if n > 0:
-#             f_10fps = np.concatenate((f_10fps, feats1), axis=1)
-#             scaler = StandardScaler()
-#             scaler.fit(feats1.T)
-#             feats1_sc = scaler.transform(feats1.T).T
-#             f_10fps_sc = np.concatenate((f_10fps_sc, feats1_sc), axis=1)
-#         else:
-#             f_10fps = feats1
-#             scaler = StandardScaler()
-#             scaler.fit(feats1.T)
-#             feats1_sc = scaler.transform(feats1.T).T
-#             f_10fps_sc = feats1_sc  # scaling is important as I've seen wildly different stdev/feat between sessions
-#     feats_train = f_10fps_sc.T
-#     trained_umap = umap.UMAP(n_neighbors=int(round(np.sqrt(feats_train.shape[0]))),  # power law
-#                              **UMAP_PARAMS).fit(feats_train)
-#     umap_embeddings = trained_umap.embedding_
-#     st.info(
-#         'Done non-linear transformation of **{}** instances from **{}** D into **{}** D.'.format(feats_train.shape[0],
-#                                                                                                  feats_train.shape[1],
-#                                                                                                  umap_embeddings.shape[
-#                                                                                                      1]))
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'wb') as f:
-#         joblib.dump([f_10fps, f_10fps_sc, umap_embeddings], f)
-#     st.balloons()
-#
-# if last_run:
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
-#         f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
-#     st.markdown('**_CHECK POINT_**: Done non-linear transformation of **{}** instances '
-#                 'from **{}** D into **{}** D.'.format(f_10fps_sc.shape[1], f_10fps_sc.shape[0],
-#                                                       umap_embeddings.shape[1]))
-#
-# # HDBSCAN
-# st.subheader('Perform density-based clustering.')
-# st.text_area('', '''
-# The following slider allows you to adjust cluster number.
-# The preset (0.7-1.5%) works for most large (> 25k instances) datasets.
-# It is recommended to tweak this for cluster number > 40 or < 4.
-# ''')
-# cluster_range = st.slider('Select range of minimum cluster size in %', 0.01, 5.0, (0.7, 1.5))
-# st.markdown('Your minimum cluster size ranges between **{}%** and **{}%**.'.format(cluster_range[0], cluster_range[1]))
-# if st.button("Start clustering"):
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
-#         f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
-#     highest_numulab = -np.infty
-#     numulab = []
-#     min_cluster_range = np.linspace(cluster_range[0], cluster_range[1], 25)
-#     for min_c in min_cluster_range:
-#         trained_classifier = hdbscan.HDBSCAN(prediction_data=True,
-#                                              min_cluster_size=int(round(min_c * 0.01 * umap_embeddings.shape[0])),
-#                                              **HDBSCAN_PARAMS).fit(umap_embeddings)
-#         numulab.append(len(np.unique(trained_classifier.labels_)))
-#         if numulab[-1] > highest_numulab:
-#             st.info('Adjusting minimum cluster size to maximize cluster number...')
-#             highest_numulab = numulab[-1]
-#             best_clf = trained_classifier
-#     assignments = best_clf.labels_
-#     soft_clusters = hdbscan.all_points_membership_vectors(best_clf)
-#     soft_assignments = np.argmax(soft_clusters, axis=1)
-#     st.info('Done assigning labels for **{}** instances in **{}** D space'.format(*umap_embeddings.shape))
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'wb') as f:
-#         joblib.dump([assignments, soft_clusters, soft_assignments], f)
-#     st.balloons()
-#
-# if last_run:
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
-#         assignments, soft_clusters, soft_assignments = joblib.load(fr)
-#     st.markdown('**_CHECK POINT_**: Done assigning labels for '
-#                 '**{}** instances in **{}** D space'.format(*umap_embeddings.shape))
-#
-# if st.checkbox("Show UMAP enhanced clustering plot?", True):
-#     st.write('Below are two cluster plots.')
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
-#         f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
-#         assignments, soft_clusters, soft_assignments = joblib.load(fr)
-#     fig1, plt1 = plot_classes(umap_embeddings[assignments >= 0], assignments[assignments >= 0])
-#     plt1.suptitle('HDBSCAN assignment')
-#     st.pyplot(fig1)
-#     st.write('The __soft__ assignment disregards noise and attempts to fit all data points to assignments '
-#              'based on highest probability.')
-#     fig2, plt2 = plot_classes(umap_embeddings[soft_assignments >= 0], soft_assignments[soft_assignments >= 0])
-#     plt2.suptitle('HDBSCAN soft assignment')
-#     st.pyplot(fig2)
-#
+
+if last_run:
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_data.sav'))), 'rb') as fr:
+        FPS, BODYPARTS, rawdata_li, training_data, perc_rect_li = joblib.load(fr)
+    if st.checkbox('Show % body part processed per file?', False):
+        st.write('This line chart shows __% body part below file-based threshold__')
+        subllh_percent = pd.DataFrame(perc_rect_li)
+        st.bar_chart(subllh_percent)
+    st.markdown('**_CHECK POINT_**: Processed a total of **{}** CSV files, '
+                'and compiled into a **{}** data list.'.format(len(rawdata_li), training_data.shape))
+
+# Feature extraction + UMAP
+st.subheader('Perform __dimensionality reduction__ to improve clustering.')
+st.text_area('', '''
+For each body part, find the distance to all others, the angular change between these distances, and its displacement over time.
+That is A LOT of dimensions, so reducing it is necessary.
+''')
+if st.button("Start dimensionality reduction"):
+    win_len = np.int(np.round(0.05 / (1 / FPS)) * 2 - 1)
+    feats = []
+    my_bar = st.progress(0)
+    for m in range(len(training_data)):
+        dataRange = len(training_data[m])
+        dxy_r = []
+        dis_r = []
+        for r in range(dataRange):
+            if r < dataRange - 1:
+                dis = []
+                for c in range(0, training_data[m].shape[1], 2):
+                    dis.append(np.linalg.norm(training_data[m][r + 1, c:c + 2] - training_data[m][r, c:c + 2]))
+                dis_r.append(dis)
+            dxy = []
+            for i, j in itertools.combinations(range(0, training_data[m].shape[1], 2), 2):
+                dxy.append(training_data[m][r, i:i + 2] - training_data[m][r, j:j + 2])
+            dxy_r.append(dxy)
+        dis_r = np.array(dis_r)
+        dxy_r = np.array(dxy_r)
+        dis_smth = []
+        dxy_eu = np.zeros([dataRange, dxy_r.shape[1]])
+        ang = np.zeros([dataRange - 1, dxy_r.shape[1]])
+        dxy_smth = []
+        ang_smth = []
+        for l in range(dis_r.shape[1]):
+            dis_smth.append(boxcar_center(dis_r[:, l], win_len))
+        for k in range(dxy_r.shape[1]):
+            for kk in range(dataRange):
+                dxy_eu[kk, k] = np.linalg.norm(dxy_r[kk, k, :])
+                if kk < dataRange - 1:
+                    b_3d = np.hstack([dxy_r[kk + 1, k, :], 0])
+                    a_3d = np.hstack([dxy_r[kk, k, :], 0])
+                    c = np.cross(b_3d, a_3d)
+                    ang[kk, k] = np.dot(np.dot(np.sign(c[2]), 180) / np.pi,
+                                        math.atan2(np.linalg.norm(c),
+                                                   np.dot(dxy_r[kk, k, :], dxy_r[kk + 1, k, :])))
+            dxy_smth.append(boxcar_center(dxy_eu[:, k], win_len))
+            ang_smth.append(boxcar_center(ang[:, k], win_len))
+        dis_smth = np.array(dis_smth)
+        dxy_smth = np.array(dxy_smth)
+        ang_smth = np.array(ang_smth)
+        feats.append(np.vstack((dxy_smth[:, 1:], ang_smth, dis_smth)))
+        my_bar.progress(round((m + 1) / len(training_data) * 100))
+    st.info('Done extracting features from a total of **{}** training CSV files.'.format(len(training_data)))
+    for n in range(0, len(feats)):
+        feats1 = np.zeros(len(training_data[n]))
+        for k in range(round(FPS / 10), len(feats[n][0]), round(FPS / 10)):
+            if k > round(FPS / 10):
+                feats1 = np.concatenate((feats1.reshape(feats1.shape[0], feats1.shape[1]),
+                                         np.hstack((np.mean((feats[n][0:dxy_smth.shape[0],
+                                                             range(k - round(FPS / 10), k)]), axis=1),
+                                                    np.sum((feats[n][dxy_smth.shape[0]:feats[n].shape[0],
+                                                            range(k - round(FPS / 10), k)]),
+                                                           axis=1))).reshape(len(feats[0]), 1)), axis=1)
+            else:
+                feats1 = np.hstack((np.mean((feats[n][0:dxy_smth.shape[0], range(k - round(FPS / 10), k)]), axis=1),
+                                    np.sum((feats[n][dxy_smth.shape[0]:feats[n].shape[0],
+                                            range(k - round(FPS / 10), k)]), axis=1))).reshape(len(feats[0]), 1)
+        if n > 0:
+            f_10fps = np.concatenate((f_10fps, feats1), axis=1)
+            scaler = StandardScaler()
+            scaler.fit(feats1.T)
+            feats1_sc = scaler.transform(feats1.T).T
+            f_10fps_sc = np.concatenate((f_10fps_sc, feats1_sc), axis=1)
+        else:
+            f_10fps = feats1
+            scaler = StandardScaler()
+            scaler.fit(feats1.T)
+            feats1_sc = scaler.transform(feats1.T).T
+            f_10fps_sc = feats1_sc  # scaling is important as I've seen wildly different stdev/feat between sessions
+    feats_train = f_10fps_sc.T
+    trained_umap = umap.UMAP(n_neighbors=int(round(np.sqrt(feats_train.shape[0]))),  # power law
+                             **UMAP_PARAMS).fit(feats_train)
+    umap_embeddings = trained_umap.embedding_
+    st.info(
+        'Done non-linear transformation of **{}** instances from **{}** D into **{}** D.'.format(feats_train.shape[0],
+                                                                                                 feats_train.shape[1],
+                                                                                                 umap_embeddings.shape[
+                                                                                                     1]))
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'wb') as f:
+        joblib.dump([f_10fps, f_10fps_sc, umap_embeddings], f)
+    st.balloons()
+
+if last_run:
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
+        f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+    st.markdown('**_CHECK POINT_**: Done non-linear transformation of **{}** instances '
+                'from **{}** D into **{}** D.'.format(f_10fps_sc.shape[1], f_10fps_sc.shape[0],
+                                                      umap_embeddings.shape[1]))
+
+# HDBSCAN
+st.subheader('Perform density-based clustering.')
+st.text_area('', '''
+The following slider allows you to adjust cluster number.
+The preset (0.7-1.5%) works for most large (> 25k instances) datasets.
+It is recommended to tweak this for cluster number > 40 or < 4.
+''')
+cluster_range = st.slider('Select range of minimum cluster size in %', 0.01, 5.0, (0.7, 1.5))
+st.markdown('Your minimum cluster size ranges between **{}%** and **{}%**.'.format(cluster_range[0], cluster_range[1]))
+if st.button("Start clustering"):
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
+        f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+    highest_numulab = -np.infty
+    numulab = []
+    min_cluster_range = np.linspace(cluster_range[0], cluster_range[1], 25)
+    for min_c in min_cluster_range:
+        trained_classifier = hdbscan.HDBSCAN(prediction_data=True,
+                                             min_cluster_size=int(round(min_c * 0.01 * umap_embeddings.shape[0])),
+                                             **HDBSCAN_PARAMS).fit(umap_embeddings)
+        numulab.append(len(np.unique(trained_classifier.labels_)))
+        if numulab[-1] > highest_numulab:
+            st.info('Adjusting minimum cluster size to maximize cluster number...')
+            highest_numulab = numulab[-1]
+            best_clf = trained_classifier
+    assignments = best_clf.labels_
+    soft_clusters = hdbscan.all_points_membership_vectors(best_clf)
+    soft_assignments = np.argmax(soft_clusters, axis=1)
+    st.info('Done assigning labels for **{}** instances in **{}** D space'.format(*umap_embeddings.shape))
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'wb') as f:
+        joblib.dump([assignments, soft_clusters, soft_assignments], f)
+    st.balloons()
+
+if last_run:
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
+        assignments, soft_clusters, soft_assignments = joblib.load(fr)
+    st.markdown('**_CHECK POINT_**: Done assigning labels for '
+                '**{}** instances in **{}** D space'.format(*umap_embeddings.shape))
+
+if st.checkbox("Show UMAP enhanced clustering plot?", True):
+    st.write('Below are two cluster plots.')
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
+        f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
+        assignments, soft_clusters, soft_assignments = joblib.load(fr)
+    fig1, plt1 = plot_classes(umap_embeddings[assignments >= 0], assignments[assignments >= 0])
+    plt1.suptitle('HDBSCAN assignment')
+    st.pyplot(fig1)
+    st.write('The __soft__ assignment disregards noise and attempts to fit all data points to assignments '
+             'based on highest probability.')
+    fig2, plt2 = plot_classes(umap_embeddings[soft_assignments >= 0], soft_assignments[soft_assignments >= 0])
+    plt2.suptitle('HDBSCAN soft assignment')
+    st.pyplot(fig2)
+
 # st.subheader('Based on __soft__ assignment, train a neural network to _learn_ the rules.')
 # st.text_area('', '''
 # Neural network will be trained on recognizing distance, angles, and speed.
