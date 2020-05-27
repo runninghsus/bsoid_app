@@ -365,8 +365,9 @@ if st.button('Export'):
         f_edge_df = pd.DataFrame(edges)
         f_edge_df.columns = pd.MultiIndex.from_product([f_edge_df.columns, ['edge']])
         f_dist_data = pd.concat((f_range_df, f_med_df, f_pcts_df, f_edge_df), axis=1)
-        f_dist_csv = f_dist_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('feature_distribution_10Hz', timestr, '.csv')))),
+        f_dist_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('feature_distribution_10Hz', timestr, '.csv')))),
                            index=True, chunksize=10000, encoding='utf-8')
+        f_dist_csv = f_dist_data.to_csv(index=True)
         b64 = base64.b64encode(f_dist_csv.encode()).decode()  # some strings <-> bytes conversions necessary here
         href1 = href2 = f'<a href="data:file/csv;base64,{b64}" download="feature_distribution_10Hz.csv"> Download 10Hz Feature Statistics CSV File</a>'
         st.markdown(href1, unsafe_allow_html=True)
@@ -400,8 +401,8 @@ if st.button('Export'):
         soft_clust_prob = pd.DataFrame(soft_clusters)
         training_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('features_labels_10Hz', timestr, '.csv')))),
                              index=True, chunksize=10000, encoding='utf-8')
-        trainingcsv = training_data.to_csv(index=False)
-        b64 = base64.b64encode(trainingcsv.encode()).decode()  # some strings <-> bytes conversions necessary here
+        training_csv = training_data.to_csv(index=False)
+        b64 = base64.b64encode(training_csv.encode()).decode()  # some strings <-> bytes conversions necessary here
         href2 = f'<a href="data:file/csv;base64,{b64}" download="features_labels_10Hz.csv"> Download 10Hz Feature with Labels CSV File</a>'
         st.markdown(href2, unsafe_allow_html=True)
     if any('Soft assignment probabilities' in o for o in result1_options):
@@ -411,6 +412,8 @@ if st.button('Export'):
         soft_clust_prob = pd.DataFrame(soft_clusters)
         soft_clust_prob.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('soft_cluster_prob_10Hz', timestr, '.csv')))),
                                index=True, chunksize=10000, encoding='utf-8')
+        clust_prob_csv = soft_clust_prob.to_csv(index=True)
+        b64 = base64.b64encode(clust_prob_csv.encode()).decode()
         href3 = f'<a href="data:file/csv;base64,{b64}" download="soft_cluster_prob_10Hz.csv"> Download 10Hz Cluster Probability CSV File</a>'
         st.markdown(href3, unsafe_allow_html=True)
     st.balloons()
