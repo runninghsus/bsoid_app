@@ -1,6 +1,7 @@
 import itertools
 import math
 
+import base64
 import ffmpeg
 import hdbscan
 import joblib
@@ -367,7 +368,7 @@ if st.button('Export'):
         f_dist_csv = f_dist_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('feature_distribution_10Hz', timestr, '.csv')))),
                            index=True, chunksize=10000, encoding='utf-8')
         b64 = base64.b64encode(f_dist_csv.encode()).decode()  # some strings <-> bytes conversions necessary here
-        href1 = f'<a href="data:file/csv;base64,{b64}">Download 10Hz Feature Statistics CSV File</a>'
+        href1 = href2 = f'<a href="data:file/csv;base64,{b64}" download="feature_distribution_10Hz.csv"> Download 10Hz Feature Statistics CSV File</a>'
         st.markdown(href1, unsafe_allow_html=True)
     if any('Feature corresponding labels' in o for o in result1_options):
         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
@@ -397,10 +398,11 @@ if st.button('Export'):
         umaphdb_df = pd.DataFrame(umaphdb_data, columns=micolumns)
         training_data = pd.concat((feat_nm_df, umaphdb_df), axis=1)
         soft_clust_prob = pd.DataFrame(soft_clusters)
-        trainingdatacsv = training_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('features_labels_10Hz', timestr, '.csv')))),
+        training_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('features_labels_10Hz', timestr, '.csv')))),
                              index=True, chunksize=10000, encoding='utf-8')
-        b64 = base64.b64encode(trainingdatacsv.encode()).decode()  # some strings <-> bytes conversions necessary here
-        href2 = f'<a href="data:file/csv;base64,{b64}">Download 10Hz Feature with Labels CSV File</a>'
+        trainingcsv = training_data.to_csv(index=False)
+        b64 = base64.b64encode(trainingcsv.encode()).decode()  # some strings <-> bytes conversions necessary here
+        href2 = f'<a href="data:file/csv;base64,{b64}" download="features_labels_10Hz.csv"> Download 10Hz Feature with Labels CSV File</a>'
         st.markdown(href2, unsafe_allow_html=True)
     if any('Soft assignment probabilities' in o for o in result1_options):
         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
@@ -409,273 +411,258 @@ if st.button('Export'):
         soft_clust_prob = pd.DataFrame(soft_clusters)
         soft_clust_prob.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('soft_cluster_prob_10Hz', timestr, '.csv')))),
                                index=True, chunksize=10000, encoding='utf-8')
-        href3 = f'<a href="data:file/csv;base64,{b64}">Download 10Hz Cluster Probability CSV File</a>'
+        href3 = f'<a href="data:file/csv;base64,{b64}" download="soft_cluster_prob_10Hz.csv"> Download 10Hz Cluster Probability CSV File</a>'
         st.markdown(href3, unsafe_allow_html=True)
     st.balloons()
-#
-# if st.sidebar.checkbox('Behavioral structure visual analysis?', False):
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
-#         assignments, soft_clusters, soft_assignments = joblib.load(fr)
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_predictions.sav'))), 'rb') as fr:
-#         flders, flder, filenames, data_new, fs_labels = joblib.load(fr)
-#     selected_flder = st.sidebar.selectbox('select folder', [*flders])
-#     try:
-#         indices = [i for i, s in enumerate(flder) if str(selected_flder) in s]
-#         tm_c_all = []
-#         tm_p_all = []
-#         for idx in indices:
-#             runlen_df, dur_stats, B, df_tm, B_norm = statistics.main(fs_labels[idx], len(np.unique(soft_assignments)))
-#             tm_c_all.append(B)
-#             tm_p_all.append(B_norm)
-#         tm_c_ave = np.nanmean(tm_c_all, axis=0)
-#         tm_p_ave = np.nanmean(tm_p_all, axis=0)
-#         diag = [tm_c_ave[i][i] for i in range(len(tm_c_ave))]
-#         diag_p = np.array(diag) / np.array(diag).max()
-#         node_sizes = [50 * i for i in diag_p]
-#         A = np.matrix(tm_p_ave)
-#         np.fill_diagonal(A, 0)
-#         A_norm = A / A.sum(axis=1)
-#         where_are_NaNs = np.isnan(A_norm)
-#         A_norm[where_are_NaNs] = 0
-#         fig = plt.figure()
-#         G = nx.from_numpy_matrix(A_norm, create_using=nx.MultiDiGraph())
-#         pos = nx.layout.spring_layout(G)
-#         edge_colors = [G[u][v][0].get('weight') for u, v in G.edges()]
-#         nodes = nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color='blue', with_label=True)
-#         edges = nx.draw_networkx_edges(G, pos, node_size=node_sizes, arrowstyle='->',
-#                                        arrowsize=8, edge_color=edge_colors,
-#                                        edge_cmap=plt.cm.Blues, width=1.5)
-#         lab_pos = [pos[i] + 0.005 for i in range(len(pos))]
-#         nx.draw_networkx_labels(G, lab_pos, font_size=10)
-#         pc = mpl.collections.PatchCollection(edges, cmap=plt.cm.Blues)
-#         pc.set_array(edge_colors)
-#         plt.colorbar(pc)
-#         ax = plt.gca()
-#         ax.set_axis_off()
-#         st.pyplot(fig)
-#     except:
-#         pass
-#
-# else:
-#     st.subheader('Making sense of these behaviors and bulk process old/new data.')
-#     txt = st.text_area('Process flow options:', '''
-#     Generate predictions and corresponding videos: allows you to go video by video and analyze with visuals.
-#     Bulk process all csvs: once you have subjective definitions for labels, you can run predictions with high consistency. It will prompt for types of analysis to be exported.
-#     ''')
-#
-#     pred_options = st.selectbox('Select an option:',
-#                                 ('Generate predictions and corresponding videos', 'Bulk process all csvs'))
-#     if pred_options == 'Generate predictions and corresponding videos':
-#         csv_dir = st.text_input('Enter the testing data sub-directory within BASE PATH:')
-#         try:
-#             os.listdir(str.join('', (BASE_PATH, csv_dir)))
-#             st.markdown(
-#                 'You have selected **{}** as your csv data sub-directory.'.format(csv_dir))
-#         except FileNotFoundError:
-#             st.error('No such directory')
-#         csv_file = st.selectbox('Select the csv file', sorted(os.listdir(str.join('', (BASE_PATH, csv_dir)))))
-#         vid_dir = st.text_input('Enter corresponding video directory (This can be outside of BASE PATH):')
-#         try:
-#             os.listdir(vid_dir)
-#             st.markdown(
-#                 'You have selected **{}** as your video directory.'.format(vid_dir))
-#         except FileNotFoundError:
-#             st.error('No such directory')
-#         vid_file = st.selectbox('Select the video (.mp4 or .avi)', sorted(os.listdir(vid_dir)))
-#         st.markdown('You have selected **{}** as your video matching **{}**.'.format(vid_file, csv_file))
-#         csvname = os.path.basename(csv_file).rpartition('.')[0]
-#         try:
-#             os.mkdir(str.join('', (BASE_PATH, csv_dir, '/pngs')))
-#         except FileExistsError:
-#             pass
-#         try:
-#             os.mkdir(str.join('', (BASE_PATH, csv_dir, '/pngs', '/', csvname)))
-#         except FileExistsError:
-#             pass
-#         frame_dir = str.join('', (BASE_PATH, csv_dir, '/pngs', '/', csvname))
-#         st.markdown('You have created **{}** as your PNG directory for video {}.'.format(frame_dir, vid_file))
-#         probe = ffmpeg.probe(os.path.join(vid_dir, vid_file))
-#         video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
-#         width = int(video_info['width'])
-#         height = int(video_info['height'])
-#         num_frames = int(video_info['nb_frames'])
-#         bit_rate = int(video_info['bit_rate'])
-#         avg_frame_rate = round(int(video_info['avg_frame_rate'].rpartition('/')[0]) / int(video_info['avg_frame_rate'].rpartition('/')[2]))
-#         if st.button('Start frame extraction for {} frames at {} frames per second'.format(num_frames, avg_frame_rate)):
-#             try:
-#                 (ffmpeg.input(os.path.join(vid_dir, vid_file))
-#                  .filter('fps', fps=avg_frame_rate)
-#                  .output(str.join('', (frame_dir, '/frame%01d.png')), video_bitrate=bit_rate,
-#                          s=str.join('', (str(int(width * 0.5)), 'x', str(int(height * 0.5)))), sws_flags='bilinear',
-#                          start_number=0)
-#                  .run(capture_stdout=True, capture_stderr=True))
-#                 st.info('Done extracting **{}** frames from video **{}**.'.format(num_frames, vid_file))
-#             except ffmpeg.Error as e:
-#                 print('stdout:', e.stdout.decode('utf8'))
-#                 print('stderr:', e.stderr.decode('utf8'))
-#         try:
-#             os.mkdir(str.join('', (BASE_PATH, csv_dir, '/mp4s')))
-#         except FileExistsError:
-#             pass
-#         try:
-#             os.mkdir(str.join('', (BASE_PATH, csv_dir, '/mp4s', '/', csvname)))
-#         except FileExistsError:
-#             pass
-#         shortvid_dir = str.join('', (BASE_PATH, csv_dir, '/mp4s', '/', csvname))
-#         st.markdown('You have created **{}** as your .mp4 directory '
-#                     'for group examples from video {}.'.format(shortvid_dir, vid_file))
-#         min_time = st.number_input('Enter minimum time for bout in ms:', value=100)
-#         min_frames = round(float(min_time) * 0.001 * float(FPS))
-#         st.markdown('You have entered **{} ms** as your minimum duration per bout, '
-#                     'which is equivalent to **{} frames**.'
-#                     '(drop this down for more group representations)'.format(min_time, min_frames))
-#         number_examples = st.slider('Select number of non-repeated examples', 1, 10, 3)
-#         st.markdown('Your will obtain a maximum of **{}** non-repeated output examples per group.'.format(number_examples))
-#         out_fps = int(st.number_input('Enter output frame-rate:', value=30))
-#         playback_speed = float(out_fps) / float(FPS)
-#         st.markdown('Your have selected to view these examples at **{} FPS**, '
-#                     'which is equivalent to **{}X speed**.'.format(out_fps, playback_speed))
-#         if st.button("Predict labels and create example videos"):
-#             with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
-#                 feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
-#             curr_df = pd.read_csv(os.path.join(str.join('', (BASE_PATH, csv_dir, '/', csv_file))), low_memory=False)
-#             curr_df_filt, perc_rect = adp_filt(curr_df, BODYPARTS)
-#             test_data = [curr_df_filt]
-#             labels_fs = []
-#             labels_fs2 = []
-#             fs_labels = []
-#             for i in range(0, len(test_data)):
-#                 feats_new = bsoid_extract(test_data, FPS)
-#                 labels = bsoid_predict(feats_new, clf)
-#                 for m in range(0, len(labels)):
-#                     labels[m] = labels[m][::-1]
-#                 labels_pad = -1 * np.ones([len(labels), len(max(labels, key=lambda x: len(x)))])
-#                 for n, l in enumerate(labels):
-#                     labels_pad[n][0:len(l)] = l
-#                     labels_pad[n] = labels_pad[n][::-1]
-#                     if n > 0:
-#                         labels_pad[n][0:n] = labels_pad[n - 1][0:n]
-#                 labels_fs.append(labels_pad.astype(int))
-#             for k in range(0, len(labels_fs)):
-#                 labels_fs2 = []
-#                 for l in range(math.floor(FPS / 10)):
-#                     labels_fs2.append(labels_fs[k][l])
-#                 fs_labels.append(np.array(labels_fs2).flatten('F'))
-#             st.info('Done frameshift-predicting **{}**.'.format(csv_file))
-#             create_labeled_vid(fs_labels[0], int(min_frames), int(number_examples), int(out_fps),
-#                                frame_dir, shortvid_dir)
-#             st.balloons()
-#         if st.checkbox("Show example videos? (loading it up from {})".format(shortvid_dir), False):
-#             example_vid = st.selectbox('Select the video (.mp4 or .avi)', sorted(os.listdir(shortvid_dir)))
-#             example_vid_file = open(os.path.join(str.join('', (shortvid_dir, '/', example_vid))), 'rb')
-#             st.markdown('You have selected **{}** as your video from {}.'.format(example_vid, shortvid_dir))
-#             video_bytes = example_vid_file.read()
-#             st.video(video_bytes)
-#
-#     if pred_options == 'Bulk process all csvs':
-#         st.write('Bulk processing will take some time for large datasets.'
-#                  'This includes a lot of files, long videos, and/or high frame-rates.')
-#         TEST_FOLDERS = []
-#         no_dir = int(st.number_input('How many sub-directories for bulk predictions?', value=3))
-#         st.markdown('Your will be predicting on **{}** csv containing sub-directories.'.format(no_dir))
-#         for i in range(no_dir):
-#             test_dir = st.text_input('Enter path to test directory number {} within base path:'.format(i + 1))
-#             try:
-#                 os.listdir(str.join('', (BASE_PATH, test_dir)))
-#             except FileNotFoundError:
-#                 st.error('No such directory')
-#             if not test_dir in TEST_FOLDERS:
-#                 TEST_FOLDERS.append(test_dir)
-#         st.markdown('You have selected sub-directory(ies) **{}**.'.format(TEST_FOLDERS))
-#         FPS = int(st.number_input('What is your framerate for these csvs?', value=60))
-#         st.markdown('Your framerate is **{}** frames per second for these csvs.'.format(FPS))
-#         st.text_area('Select the analysis of interest to you. If in doubt, select all.', '''
-#         Predicted labels with original pose: labels written into original .csv files (time-locked).
-#         Behavioral bout lengths in chronological order: the behaviors and its bouts over time.
-#         Behavioral bout statistics: basic statistics for these behavioral durations.
-#         Transition matrix: behavioral transitions based on Markov Decision Process.
-#         ''')
-#         result2_options = st.multiselect('What type of results do you want to export?',
-#                                          ['Predicted labels with original pose',
-#                                           'Behavioral bout lengths in chronological order',
-#                                           'Behavioral bout statistics', 'Transition matrix'],
-#                                          ['Predicted labels with original pose', 'Behavioral bout statistics'])
-#         if st.button("Begin bulk csv processing, potentially a long computation"):
-#             st.write('These B-SOiD csv files will be saved in the original pose estimation csv containing folders, under sub-directory BSOID.')
-#             with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
-#                 feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
-#             flders, filenames, data_new, perc_rect = likelihoodprocessing.main(BASE_PATH, TEST_FOLDERS, BODYPARTS)
-#             labels_fs = []
-#             labels_fs2 = []
-#             fs_labels = []
-#             bar = st.progress(0)
-#             for i in range(0, len(data_new)):
-#                 feats_new = bsoid_extract([data_new[i]], FPS)
-#                 labels = bsoid_predict(feats_new, clf)
-#                 for m in range(0, len(labels)):
-#                     labels[m] = labels[m][::-1]
-#                 labels_pad = -1 * np.ones([len(labels), len(max(labels, key=lambda x: len(x)))])
-#                 for n, l in enumerate(labels):
-#                     labels_pad[n][0:len(l)] = l
-#                     labels_pad[n] = labels_pad[n][::-1]
-#                     if n > 0:
-#                         labels_pad[n][0:n] = labels_pad[n - 1][0:n]
-#                 labels_fs.append(labels_pad.astype(int))
-#                 bar.progress(round((i + 1) / len(data_new) * 100))
-#             for k in range(0, len(labels_fs)):
-#                 labels_fs2 = []
-#                 for l in range(math.floor(FPS / 10)):
-#                     labels_fs2.append(labels_fs[k][l])
-#                 fs_labels.append(np.array(labels_fs2).flatten('F'))
-#             st.info('Done frameshift-predicting a total of **{}** files.'.format(len(data_new)))
-#             filenames = []
-#             all_df = []
-#             flder = []
-#             for i, fd in enumerate(TEST_FOLDERS):  # Loop through folders
-#                 f = get_filenames(BASE_PATH, fd)
-#                 for j, filename in enumerate(f):
-#                     curr_df = pd.read_csv(filename, low_memory=False)
-#                     filenames.append(filename)
-#                     flder.append(fd)
-#                     all_df.append(curr_df)
-#             for i in range(0, len(fs_labels)):
-#                 timestr = time.strftime("_%Y%m%d_%H%M_")
-#                 csvname = os.path.basename(filenames[i]).rpartition('.')[0]
-#                 fs_labels_pad = np.pad(fs_labels[i], (0, len(all_df[i]) - 2 - len(fs_labels[i])), 'edge')
-#                 df2 = pd.DataFrame(fs_labels_pad, columns={'B-SOiD labels'})
-#                 df2.loc[len(df2)] = ''
-#                 df2.loc[len(df2)] = ''
-#                 df2 = df2.shift()
-#                 df2.loc[0] = ''
-#                 df2 = df2.shift()
-#                 df2.loc[0] = ''
-#                 frames = [df2, all_df[0]]
-#                 xyfs_df = pd.concat(frames, axis=1)
-#                 runlen_df, dur_stats, B, df_tm, B_norm = statistics.main(fs_labels[i], len(np.unique(nn_assignments)))
-#                 try:
-#                     os.mkdir(str.join('', (BASE_PATH, flder[i], '/BSOID')))
-#                 except FileExistsError:
-#                     pass
-#                 if any('Predicted labels with original pose' in o for o in result2_options):
-#                     xyfs_df.to_csv(os.path.join(
-#                         str.join('', (BASE_PATH, flder[i], '/BSOID')),
-#                         str.join('', ('labels_pose_', str(FPS), 'Hz', timestr, csvname, '.csv'))),
-#                         index=True, chunksize=10000, encoding='utf-8')
-#                 if any('Behavioral bout lengths in chronological order' in o for o in result2_options):
-#                     runlen_df.to_csv(os.path.join(
-#                         str.join('', (BASE_PATH, flder[i], '/BSOID')),
-#                         str.join('', ('bout_lengths_', str(FPS), 'Hz', timestr, csvname, '.csv'))),
-#                         index=True, chunksize=10000, encoding='utf-8')
-#                 if any('Behavioral bout statistics' in o for o in result2_options):
-#                     dur_stats.to_csv(os.path.join(
-#                         str.join('', (BASE_PATH, flder[i], '/BSOID')),
-#                         str.join('', ('bout_stats_', str(FPS), 'Hz', timestr, csvname, '.csv'))),
-#                     index=True, chunksize=10000, encoding='utf-8')
-#                 if any('Transition matrix' in o for o in result2_options):
-#                     df_tm.to_csv(os.path.join(
-#                         str.join('', (BASE_PATH, flder[i], '/BSOID')),
-#                         str.join('', ('transitions_mat_', str(FPS), 'Hz', timestr, csvname,'.csv'))),
-#                     index=True, chunksize=10000, encoding='utf-8')
-#             with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_predictions.sav'))), 'wb') as f:
-#                 joblib.dump([flders, flder, filenames, data_new, fs_labels], f)
-#             st.balloons()
+
+if st.sidebar.checkbox('Behavioral structure visual analysis?', False):
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
+        assignments, soft_clusters, soft_assignments = joblib.load(fr)
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_predictions.sav'))), 'rb') as fr:
+        flders, flder, filenames, data_new, fs_labels = joblib.load(fr)
+    selected_flder = st.sidebar.selectbox('select folder', [*flders])
+    try:
+        indices = [i for i, s in enumerate(flder) if str(selected_flder) in s]
+        tm_c_all = []
+        tm_p_all = []
+        for idx in indices:
+            runlen_df, dur_stats, B, df_tm, B_norm = statistics.main(fs_labels[idx], len(np.unique(soft_assignments)))
+            tm_c_all.append(B)
+            tm_p_all.append(B_norm)
+        tm_c_ave = np.nanmean(tm_c_all, axis=0)
+        tm_p_ave = np.nanmean(tm_p_all, axis=0)
+        diag = [tm_c_ave[i][i] for i in range(len(tm_c_ave))]
+        diag_p = np.array(diag) / np.array(diag).max()
+        node_sizes = [50 * i for i in diag_p]
+        A = np.matrix(tm_p_ave)
+        np.fill_diagonal(A, 0)
+        A_norm = A / A.sum(axis=1)
+        where_are_NaNs = np.isnan(A_norm)
+        A_norm[where_are_NaNs] = 0
+        fig = plt.figure()
+        G = nx.from_numpy_matrix(A_norm, create_using=nx.MultiDiGraph())
+        pos = nx.layout.spring_layout(G)
+        edge_colors = [G[u][v][0].get('weight') for u, v in G.edges()]
+        nodes = nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color='blue', with_label=True)
+        edges = nx.draw_networkx_edges(G, pos, node_size=node_sizes, arrowstyle='->',
+                                       arrowsize=8, edge_color=edge_colors,
+                                       edge_cmap=plt.cm.Blues, width=1.5)
+        lab_pos = [pos[i] + 0.005 for i in range(len(pos))]
+        nx.draw_networkx_labels(G, lab_pos, font_size=10)
+        pc = mpl.collections.PatchCollection(edges, cmap=plt.cm.Blues)
+        pc.set_array(edge_colors)
+        plt.colorbar(pc)
+        ax = plt.gca()
+        ax.set_axis_off()
+        st.pyplot(fig)
+    except:
+        pass
+
+else:
+    st.subheader('Making sense of these behaviors and bulk process old/new data.')
+    txt = st.text_area('Process flow options:', '''
+    Generate predictions and corresponding videos: allows you to go video by video and analyze with visuals.
+    Bulk process all csvs: once you have subjective definitions for labels, you can run predictions with high consistency. It will prompt for types of analysis to be exported.
+    ''')
+    pred_options = st.selectbox('Select an option:',
+                                ('Generate predictions and corresponding videos', 'Bulk process all csvs'))
+    if pred_options == 'Generate predictions and corresponding videos':
+        csv_file = st.file_uploader('Upload csv file', type=['csv'])
+        vid_file = st.file_uploader('Upload corresponding video (.mp4 or .avi) file', type=['mp4', 'avi'])
+        st.markdown('You have selected **{}** as your video matching **{}**.'.format(vid_file, csv_file))
+        csvname = os.path.basename(csv_file).rpartition('.')[0]
+        try:
+            os.mkdir(str.join('', (OUTPUT_PATH, '/pngs')))
+        except FileExistsError:
+            pass
+        try:
+            os.mkdir(str.join('', (OUTPUT_PATH, '/pngs', '/', csvname)))
+        except FileExistsError:
+            pass
+        frame_dir = str.join('', (OUTPUT_PATH, '/pngs', '/', csvname))
+        st.markdown('You have created **{}** as your PNG directory for video {}.'.format(frame_dir, vid_file))
+        probe = ffmpeg.probe(vid_file)
+        video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
+        width = int(video_info['width'])
+        height = int(video_info['height'])
+        num_frames = int(video_info['nb_frames'])
+        bit_rate = int(video_info['bit_rate'])
+        avg_frame_rate = round(int(video_info['avg_frame_rate'].rpartition('/')[0]) / int(video_info['avg_frame_rate'].rpartition('/')[2]))
+        if st.button('Start frame extraction for {} frames at {} frames per second'.format(num_frames, avg_frame_rate)):
+            try:
+                (ffmpeg.input(vid_file)
+                 .filter('fps', fps=avg_frame_rate)
+                 .output(str.join('', (frame_dir, '/frame%01d.png')), video_bitrate=bit_rate,
+                         s=str.join('', (str(int(width * 0.5)), 'x', str(int(height * 0.5)))), sws_flags='bilinear',
+                         start_number=0)
+                 .run(capture_stdout=True, capture_stderr=True))
+                st.info('Done extracting **{}** frames from video **{}**.'.format(num_frames, vid_file))
+            except ffmpeg.Error as e:
+                print('stdout:', e.stdout.decode('utf8'))
+                print('stderr:', e.stderr.decode('utf8'))
+        try:
+            os.mkdir(str.join('', (OUTPUT_PATH, '/mp4s')))
+        except FileExistsError:
+            pass
+        try:
+            os.mkdir(str.join('', (OUTPUT_PATH, '/mp4s', '/', csvname)))
+        except FileExistsError:
+            pass
+        shortvid_dir = str.join('', (OUTPUT_PATH, '/mp4s', '/', csvname))
+        st.markdown('You have created **{}** as your .mp4 directory '
+                    'for group examples from video {}.'.format(shortvid_dir, vid_file))
+        min_time = st.number_input('Enter minimum time for bout in ms:', value=100)
+        min_frames = round(float(min_time) * 0.001 * float(FPS))
+        st.markdown('You have entered **{} ms** as your minimum duration per bout, '
+                    'which is equivalent to **{} frames**.'
+                    '(drop this down for more group representations)'.format(min_time, min_frames))
+        number_examples = st.slider('Select number of non-repeated examples', 1, 10, 3)
+        st.markdown('Your will obtain a maximum of **{}** non-repeated output examples per group.'.format(number_examples))
+        out_fps = int(st.number_input('Enter output frame-rate:', value=30))
+        playback_speed = float(out_fps) / float(FPS)
+        st.markdown('Your have selected to view these examples at **{} FPS**, '
+                    'which is equivalent to **{}X speed**.'.format(out_fps, playback_speed))
+        if st.button("Predict labels and create example videos"):
+            with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
+                feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
+            curr_df = pd.read_csv(csv_file, low_memory=False)
+            curr_df_filt, perc_rect = adp_filt(curr_df, BODYPARTS)
+            test_data = [curr_df_filt]
+            labels_fs = []
+            labels_fs2 = []
+            fs_labels = []
+            for i in range(0, len(test_data)):
+                feats_new = bsoid_extract(test_data, FPS)
+                labels = bsoid_predict(feats_new, clf)
+                for m in range(0, len(labels)):
+                    labels[m] = labels[m][::-1]
+                labels_pad = -1 * np.ones([len(labels), len(max(labels, key=lambda x: len(x)))])
+                for n, l in enumerate(labels):
+                    labels_pad[n][0:len(l)] = l
+                    labels_pad[n] = labels_pad[n][::-1]
+                    if n > 0:
+                        labels_pad[n][0:n] = labels_pad[n - 1][0:n]
+                labels_fs.append(labels_pad.astype(int))
+            for k in range(0, len(labels_fs)):
+                labels_fs2 = []
+                for l in range(math.floor(FPS / 10)):
+                    labels_fs2.append(labels_fs[k][l])
+                fs_labels.append(np.array(labels_fs2).flatten('F'))
+            st.info('Done frameshift-predicting **{}**.'.format(csv_file))
+            create_labeled_vid(fs_labels[0], int(min_frames), int(number_examples), int(out_fps),
+                               frame_dir, shortvid_dir)
+            st.balloons()
+        if st.checkbox("Show example videos? (loading it up from {})".format(shortvid_dir), False):
+            example_vid = st.selectbox('Select the video (.mp4 or .avi)', sorted(os.listdir(shortvid_dir)))
+            example_vid_file = open(os.path.join(str.join('', (shortvid_dir, '/', example_vid))), 'rb')
+            st.markdown('You have selected **{}** as your video from {}.'.format(example_vid, shortvid_dir))
+            video_bytes = example_vid_file.read()
+            st.video(video_bytes)
+
+    # if pred_options == 'Bulk process all csvs':
+    #     st.write('Bulk processing will take some time for large datasets.'
+    #              'This includes a lot of files, long videos, and/or high frame-rates.')
+    #     TEST_FOLDERS = []
+    #     no_dir = int(st.number_input('How many sub-directories for bulk predictions?', value=3))
+    #     st.markdown('Your will be predicting on **{}** csv containing sub-directories.'.format(no_dir))
+    #     for i in range(no_dir):
+    #         test_dir = st.text_input('Enter path to test directory number {} within base path:'.format(i + 1))
+    #         try:
+    #             os.listdir(str.join('', (BASE_PATH, test_dir)))
+    #         except FileNotFoundError:
+    #             st.error('No such directory')
+    #         if not test_dir in TEST_FOLDERS:
+    #             TEST_FOLDERS.append(test_dir)
+    #     st.markdown('You have selected sub-directory(ies) **{}**.'.format(TEST_FOLDERS))
+    #     FPS = int(st.number_input('What is your framerate for these csvs?', value=60))
+    #     st.markdown('Your framerate is **{}** frames per second for these csvs.'.format(FPS))
+    #     st.text_area('Select the analysis of interest to you. If in doubt, select all.', '''
+    #     Predicted labels with original pose: labels written into original .csv files (time-locked).
+    #     Behavioral bout lengths in chronological order: the behaviors and its bouts over time.
+    #     Behavioral bout statistics: basic statistics for these behavioral durations.
+    #     Transition matrix: behavioral transitions based on Markov Decision Process.
+    #     ''')
+    #     result2_options = st.multiselect('What type of results do you want to export?',
+    #                                      ['Predicted labels with original pose',
+    #                                       'Behavioral bout lengths in chronological order',
+    #                                       'Behavioral bout statistics', 'Transition matrix'],
+    #                                      ['Predicted labels with original pose', 'Behavioral bout statistics'])
+    #     if st.button("Begin bulk csv processing, potentially a long computation"):
+    #         st.write('These B-SOiD csv files will be saved in the original pose estimation csv containing folders, under sub-directory BSOID.')
+    #         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
+    #             feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
+    #         flders, filenames, data_new, perc_rect = likelihoodprocessing.main(BASE_PATH, TEST_FOLDERS, BODYPARTS)
+    #         labels_fs = []
+    #         labels_fs2 = []
+    #         fs_labels = []
+    #         bar = st.progress(0)
+    #         for i in range(0, len(data_new)):
+    #             feats_new = bsoid_extract([data_new[i]], FPS)
+    #             labels = bsoid_predict(feats_new, clf)
+    #             for m in range(0, len(labels)):
+    #                 labels[m] = labels[m][::-1]
+    #             labels_pad = -1 * np.ones([len(labels), len(max(labels, key=lambda x: len(x)))])
+    #             for n, l in enumerate(labels):
+    #                 labels_pad[n][0:len(l)] = l
+    #                 labels_pad[n] = labels_pad[n][::-1]
+    #                 if n > 0:
+    #                     labels_pad[n][0:n] = labels_pad[n - 1][0:n]
+    #             labels_fs.append(labels_pad.astype(int))
+    #             bar.progress(round((i + 1) / len(data_new) * 100))
+    #         for k in range(0, len(labels_fs)):
+    #             labels_fs2 = []
+    #             for l in range(math.floor(FPS / 10)):
+    #                 labels_fs2.append(labels_fs[k][l])
+    #             fs_labels.append(np.array(labels_fs2).flatten('F'))
+    #         st.info('Done frameshift-predicting a total of **{}** files.'.format(len(data_new)))
+    #         filenames = []
+    #         all_df = []
+    #         flder = []
+    #         for i, fd in enumerate(TEST_FOLDERS):  # Loop through folders
+    #             f = get_filenames(BASE_PATH, fd)
+    #             for j, filename in enumerate(f):
+    #                 curr_df = pd.read_csv(filename, low_memory=False)
+    #                 filenames.append(filename)
+    #                 flder.append(fd)
+    #                 all_df.append(curr_df)
+    #         for i in range(0, len(fs_labels)):
+    #             timestr = time.strftime("_%Y%m%d_%H%M_")
+    #             csvname = os.path.basename(filenames[i]).rpartition('.')[0]
+    #             fs_labels_pad = np.pad(fs_labels[i], (0, len(all_df[i]) - 2 - len(fs_labels[i])), 'edge')
+    #             df2 = pd.DataFrame(fs_labels_pad, columns={'B-SOiD labels'})
+    #             df2.loc[len(df2)] = ''
+    #             df2.loc[len(df2)] = ''
+    #             df2 = df2.shift()
+    #             df2.loc[0] = ''
+    #             df2 = df2.shift()
+    #             df2.loc[0] = ''
+    #             frames = [df2, all_df[0]]
+    #             xyfs_df = pd.concat(frames, axis=1)
+    #             runlen_df, dur_stats, B, df_tm, B_norm = statistics.main(fs_labels[i], len(np.unique(nn_assignments)))
+    #             try:
+    #                 os.mkdir(str.join('', (BASE_PATH, flder[i], '/BSOID')))
+    #             except FileExistsError:
+    #                 pass
+    #             if any('Predicted labels with original pose' in o for o in result2_options):
+    #                 xyfs_df.to_csv(os.path.join(
+    #                     str.join('', (BASE_PATH, flder[i], '/BSOID')),
+    #                     str.join('', ('labels_pose_', str(FPS), 'Hz', timestr, csvname, '.csv'))),
+    #                     index=True, chunksize=10000, encoding='utf-8')
+    #             if any('Behavioral bout lengths in chronological order' in o for o in result2_options):
+    #                 runlen_df.to_csv(os.path.join(
+    #                     str.join('', (BASE_PATH, flder[i], '/BSOID')),
+    #                     str.join('', ('bout_lengths_', str(FPS), 'Hz', timestr, csvname, '.csv'))),
+    #                     index=True, chunksize=10000, encoding='utf-8')
+    #             if any('Behavioral bout statistics' in o for o in result2_options):
+    #                 dur_stats.to_csv(os.path.join(
+    #                     str.join('', (BASE_PATH, flder[i], '/BSOID')),
+    #                     str.join('', ('bout_stats_', str(FPS), 'Hz', timestr, csvname, '.csv'))),
+    #                 index=True, chunksize=10000, encoding='utf-8')
+    #             if any('Transition matrix' in o for o in result2_options):
+    #                 df_tm.to_csv(os.path.join(
+    #                     str.join('', (BASE_PATH, flder[i], '/BSOID')),
+    #                     str.join('', ('transitions_mat_', str(FPS), 'Hz', timestr, csvname,'.csv'))),
+    #                 index=True, chunksize=10000, encoding='utf-8')
+    #         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_predictions.sav'))), 'wb') as f:
+    #             joblib.dump([flders, flder, filenames, data_new, fs_labels], f)
+    #         st.balloons()
