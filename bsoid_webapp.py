@@ -39,7 +39,8 @@ st.video(video_bytes)
 
 # Load previous run?
 if st.sidebar.checkbox("Load previous run? This resumes training, or can load previously trained network for new analysis.", False):
-    OUTPUT_PATH = st.sidebar.text_input('Enter the prior run username:')
+    username = st.sidebar.text_input('Enter the prior run username:')
+    OUTPUT_PATH = str.join('', ('/home', '/', username))
     try:
         os.listdir(OUTPUT_PATH)
         st.markdown(
@@ -280,129 +281,137 @@ if st.checkbox("Show UMAP enhanced clustering plot?", True):
     plt2.suptitle('HDBSCAN soft assignment')
     st.pyplot(fig2)
 
-# st.subheader('Based on __soft__ assignment, train a neural network to _learn_ the rules.')
-# st.text_area('', '''
-# Neural network will be trained on recognizing distance, angles, and speed.
-# This is for our vision in closed-loop experiments
-#              ''')
-# if st.button("Start training a behavioral neural network"):
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
-#         f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
-#         assignments, soft_clusters, soft_assignments = joblib.load(fr)
-#     feats_train, feats_test, labels_train, labels_test = train_test_split(f_10fps.T, soft_assignments.T,
-#                                                                           test_size=HLDOUT, random_state=23)
-#     st.info(
-#         'Training feedforward neural network on randomly partitioned {}% of training data...'.format(
-#             (1 - HLDOUT) * 100))
-#     classifier = MLPClassifier(**MLP_PARAMS)
-#     classifier.fit(feats_train, labels_train)
-#     clf = MLPClassifier(**MLP_PARAMS)
-#     clf.fit(f_10fps.T, soft_assignments.T)
-#     nn_assignments = clf.predict(f_10fps.T)
-#     st.info('Done training feedforward neural network '
-#             'mapping **{}** features to **{}** assignments.'.format(f_10fps.T.shape, soft_assignments.T.shape))
-#     scores = cross_val_score(classifier, feats_test, labels_test, cv=CV_IT, n_jobs=-1)
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'wb') as f:
-#         joblib.dump([feats_test, labels_test, classifier, clf, scores, nn_assignments], f)
-#     st.balloons()
-#
-# if last_run:
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
-#         feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
-#     st.markdown('**_CHECK POINT_**: Done training feedforward neural network '
-#                 'mapping **{}** features to **{}** assignments.'.format(f_10fps.T.shape, soft_assignments.T.shape))
-#
-# if st.checkbox("Show confusion matrix on {}% data?".format(HLDOUT * 100), False):
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
-#         feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
-#     np.set_printoptions(precision=2)
-#     titles_options = [("Non-normalized confusion matrix", None),
-#                       ("Normalized confusion matrix", 'true')]
-#     titlenames = [("counts"), ("norm")]
-#     j = 0
-#     st.write('Below are two confusion matrices - top: raw counts, bottom: probability. '
-#              'These matrices shows **true positives in diagonal**, false negatives in rows, and false positives in columns')
-#     for title, normalize in titles_options:
-#         cm = plot_confusion_matrix(classifier, feats_test, labels_test,
-#                                    cmap=plt.cm.Blues,
-#                                    normalize=normalize)
-#         cm.ax_.set_title(title)
-#         j += 1
-#         st.pyplot(cm.figure_)
-#     st.write(
-#         'If these are **NOT satisfactory**, either _increase_ the above minimum cluster size to remove noise subgroups, or include _more data_')
-# if st.checkbox("Show cross-validated accuracy on randomly selected {}% held-out test set?".format(HLDOUT * 100), False):
-#     st.write('For **overall** machine learning accuracy, a part of the error could be _cleaning up_ clustering noise.')
-#     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
-#         feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
-#     fig, plt = plot_accuracy(scores)
-#     st.pyplot(fig)
-#     st.write(
-#         'If this is **NOT satisfactory**, either _increase_ the above minimum cluster size to remove noise subgroups, or include _more data_')
-#
-# st.subheader('If reasonable/satisfied, you may export analyses results to {}'.format(OUTPUT_PATH))
-# txt5 = st.text_area('Result options descriptions:', '''
-# Input features: basic statistics of these extracted pairwise distance, angle, and speed features.
-# Feature corresponding labels: these features time-locked to the labels.
-# Soft assignment probabilities: if interested, the label probabilities of each time point.
-# ''')
-# result1_options = st.multiselect('What type of results do you want to export',
-#                                  ['Input features', 'Feature corresponding labels', 'Soft assignment probabilities'],
-#                                  ['Feature corresponding labels'])
-# if st.button('Export'):
-#     if any('Input features' in o for o in result1_options):
-#         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
-#             f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
-#         timestr = time.strftime("_%Y%m%d_%H%M")
-#         feat_range, feat_med, p_cts, edges = feat_dist(f_10fps)
-#         f_range_df = pd.DataFrame(feat_range, columns=['5%tile', '95%tile'])
-#         f_med_df = pd.DataFrame(feat_med, columns=['median'])
-#         f_pcts_df = pd.DataFrame(p_cts)
-#         f_pcts_df.columns = pd.MultiIndex.from_product([f_pcts_df.columns, ['prob']])
-#         f_edge_df = pd.DataFrame(edges)
-#         f_edge_df.columns = pd.MultiIndex.from_product([f_edge_df.columns, ['edge']])
-#         f_dist_data = pd.concat((f_range_df, f_med_df, f_pcts_df, f_edge_df), axis=1)
-#         f_dist_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('feature_distribution_10Hz', timestr, '.csv')))),
-#                            index=True, chunksize=10000, encoding='utf-8')
-#     if any('Feature corresponding labels' in o for o in result1_options):
-#         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
-#             f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
-#         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
-#             assignments, soft_clusters, soft_assignments = joblib.load(fr)
-#         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
-#             feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
-#         timestr = time.strftime("_%Y%m%d_%H%M")
-#         length_nm = []
-#         angle_nm = []
-#         disp_nm = []
-#         for i, j in itertools.combinations(range(0, int(np.sqrt(f_10fps.shape[0]))), 2):
-#             length_nm.append(['distance between points:', i + 1, j + 1])
-#             angle_nm.append(['angular change for points:', i + 1, j + 1])
-#         for i in range(int(np.sqrt(f_10fps.shape[0]))):
-#             disp_nm.append(['displacement for point:', i + 1, i + 1])
-#         mcol = np.vstack((length_nm, angle_nm, disp_nm))
-#         feat_nm_df = pd.DataFrame(f_10fps.T, columns=mcol)
-#         umaphdb_data = np.concatenate([umap_embeddings, assignments.reshape(len(assignments), 1),
-#                                        soft_assignments.reshape(len(soft_assignments), 1),
-#                                        nn_assignments.reshape(len(nn_assignments), 1)], axis=1)
-#         micolumns = pd.MultiIndex.from_tuples([('UMAP embeddings', 'Dimension 1'), ('', 'Dimension 2'),
-#                                                ('', 'Dimension 3'), ('HDBSCAN', 'Assignment No.'),
-#                                                ('HDBSCAN*SOFT', 'Assignment No.'), ('Neural Net', 'Assignment No.')],
-#                                               names=['Type', 'Frame@10Hz'])
-#         umaphdb_df = pd.DataFrame(umaphdb_data, columns=micolumns)
-#         training_data = pd.concat((feat_nm_df, umaphdb_df), axis=1)
-#         soft_clust_prob = pd.DataFrame(soft_clusters)
-#         training_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('features_labels_10Hz', timestr, '.csv')))),
-#                              index=True, chunksize=10000, encoding='utf-8')
-#     if any('Soft assignment probabilities' in o for o in result1_options):
-#         with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
-#             assignments, soft_clusters, soft_assignments = joblib.load(fr)
-#         timestr = time.strftime("_%Y%m%d_%H%M")
-#         soft_clust_prob = pd.DataFrame(soft_clusters)
-#         soft_clust_prob.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('soft_cluster_prob_10Hz', timestr, '.csv')))),
-#                                index=True, chunksize=10000, encoding='utf-8')
-#     st.balloons()
+st.subheader('Based on __soft__ assignment, train a neural network to _learn_ the rules.')
+st.text_area('', '''
+Neural network will be trained on recognizing distance, angles, and speed.
+This is for our vision in closed-loop experiments
+             ''')
+if st.button("Start training a behavioral neural network"):
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
+        f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
+        assignments, soft_clusters, soft_assignments = joblib.load(fr)
+    feats_train, feats_test, labels_train, labels_test = train_test_split(f_10fps.T, soft_assignments.T,
+                                                                          test_size=HLDOUT, random_state=23)
+    st.info(
+        'Training feedforward neural network on randomly partitioned {}% of training data...'.format(
+            (1 - HLDOUT) * 100))
+    classifier = MLPClassifier(**MLP_PARAMS)
+    classifier.fit(feats_train, labels_train)
+    clf = MLPClassifier(**MLP_PARAMS)
+    clf.fit(f_10fps.T, soft_assignments.T)
+    nn_assignments = clf.predict(f_10fps.T)
+    st.info('Done training feedforward neural network '
+            'mapping **{}** features to **{}** assignments.'.format(f_10fps.T.shape, soft_assignments.T.shape))
+    scores = cross_val_score(classifier, feats_test, labels_test, cv=CV_IT, n_jobs=-1)
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'wb') as f:
+        joblib.dump([feats_test, labels_test, classifier, clf, scores, nn_assignments], f)
+    st.balloons()
+
+if last_run:
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
+        feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
+    st.markdown('**_CHECK POINT_**: Done training feedforward neural network '
+                'mapping **{}** features to **{}** assignments.'.format(f_10fps.T.shape, soft_assignments.T.shape))
+
+if st.checkbox("Show confusion matrix on {}% data?".format(HLDOUT * 100), False):
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
+        feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
+    np.set_printoptions(precision=2)
+    titles_options = [("Non-normalized confusion matrix", None),
+                      ("Normalized confusion matrix", 'true')]
+    titlenames = [("counts"), ("norm")]
+    j = 0
+    st.write('Below are two confusion matrices - top: raw counts, bottom: probability. '
+             'These matrices shows **true positives in diagonal**, false negatives in rows, and false positives in columns')
+    for title, normalize in titles_options:
+        cm = plot_confusion_matrix(classifier, feats_test, labels_test,
+                                   cmap=plt.cm.Blues,
+                                   normalize=normalize)
+        cm.ax_.set_title(title)
+        j += 1
+        st.pyplot(cm.figure_)
+    st.write(
+        'If these are **NOT satisfactory**, either _increase_ the above minimum cluster size to remove noise subgroups, or include _more data_')
+if st.checkbox("Show cross-validated accuracy on randomly selected {}% held-out test set?".format(HLDOUT * 100), False):
+    st.write('For **overall** machine learning accuracy, a part of the error could be _cleaning up_ clustering noise.')
+    with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
+        feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
+    fig, plt = plot_accuracy(scores)
+    st.pyplot(fig)
+    st.write(
+        'If this is **NOT satisfactory**, either _increase_ the above minimum cluster size to remove noise subgroups, or include _more data_')
+
+st.subheader('If reasonable/satisfied, you may export analyses results to {}'.format(OUTPUT_PATH))
+txt5 = st.text_area('Result options descriptions:', '''
+Input features: basic statistics of these extracted pairwise distance, angle, and speed features.
+Feature corresponding labels: these features time-locked to the labels.
+Soft assignment probabilities: if interested, the label probabilities of each time point.
+''')
+result1_options = st.multiselect('What type of results do you want to export',
+                                 ['Input features', 'Feature corresponding labels', 'Soft assignment probabilities'],
+                                 ['Feature corresponding labels'])
+if st.button('Export'):
+    if any('Input features' in o for o in result1_options):
+        with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
+            f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+        timestr = time.strftime("_%Y%m%d_%H%M")
+        feat_range, feat_med, p_cts, edges = feat_dist(f_10fps)
+        f_range_df = pd.DataFrame(feat_range, columns=['5%tile', '95%tile'])
+        f_med_df = pd.DataFrame(feat_med, columns=['median'])
+        f_pcts_df = pd.DataFrame(p_cts)
+        f_pcts_df.columns = pd.MultiIndex.from_product([f_pcts_df.columns, ['prob']])
+        f_edge_df = pd.DataFrame(edges)
+        f_edge_df.columns = pd.MultiIndex.from_product([f_edge_df.columns, ['edge']])
+        f_dist_data = pd.concat((f_range_df, f_med_df, f_pcts_df, f_edge_df), axis=1)
+        f_dist_csv = f_dist_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('feature_distribution_10Hz', timestr, '.csv')))),
+                           index=True, chunksize=10000, encoding='utf-8')
+        b64 = base64.b64encode(f_dist_csv.encode()).decode()  # some strings <-> bytes conversions necessary here
+        href1 = f'<a href="data:file/csv;base64,{b64}">Download 10Hz Feature Statistics CSV File</a>'
+        st.markdown(href1, unsafe_allow_html=True)
+    if any('Feature corresponding labels' in o for o in result1_options):
+        with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
+            f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+        with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
+            assignments, soft_clusters, soft_assignments = joblib.load(fr)
+        with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_neuralnet.sav'))), 'rb') as fr:
+            feats_test, labels_test, classifier, clf, scores, nn_assignments = joblib.load(fr)
+        timestr = time.strftime("_%Y%m%d_%H%M")
+        length_nm = []
+        angle_nm = []
+        disp_nm = []
+        for i, j in itertools.combinations(range(0, int(np.sqrt(f_10fps.shape[0]))), 2):
+            length_nm.append(['distance between points:', i + 1, j + 1])
+            angle_nm.append(['angular change for points:', i + 1, j + 1])
+        for i in range(int(np.sqrt(f_10fps.shape[0]))):
+            disp_nm.append(['displacement for point:', i + 1, i + 1])
+        mcol = np.vstack((length_nm, angle_nm, disp_nm))
+        feat_nm_df = pd.DataFrame(f_10fps.T, columns=mcol)
+        umaphdb_data = np.concatenate([umap_embeddings, assignments.reshape(len(assignments), 1),
+                                       soft_assignments.reshape(len(soft_assignments), 1),
+                                       nn_assignments.reshape(len(nn_assignments), 1)], axis=1)
+        micolumns = pd.MultiIndex.from_tuples([('UMAP embeddings', 'Dimension 1'), ('', 'Dimension 2'),
+                                               ('', 'Dimension 3'), ('HDBSCAN', 'Assignment No.'),
+                                               ('HDBSCAN*SOFT', 'Assignment No.'), ('Neural Net', 'Assignment No.')],
+                                              names=['Type', 'Frame@10Hz'])
+        umaphdb_df = pd.DataFrame(umaphdb_data, columns=micolumns)
+        training_data = pd.concat((feat_nm_df, umaphdb_df), axis=1)
+        soft_clust_prob = pd.DataFrame(soft_clusters)
+        trainingdatacsv = training_data.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('features_labels_10Hz', timestr, '.csv')))),
+                             index=True, chunksize=10000, encoding='utf-8')
+        b64 = base64.b64encode(trainingdatacsv.encode()).decode()  # some strings <-> bytes conversions necessary here
+        href2 = f'<a href="data:file/csv;base64,{b64}">Download 10Hz Feature with Labels CSV File</a>'
+        st.markdown(href2, unsafe_allow_html=True)
+    if any('Soft assignment probabilities' in o for o in result1_options):
+        with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
+            assignments, soft_clusters, soft_assignments = joblib.load(fr)
+        timestr = time.strftime("_%Y%m%d_%H%M")
+        soft_clust_prob = pd.DataFrame(soft_clusters)
+        soft_clust_prob.to_csv((os.path.join(OUTPUT_PATH, str.join('', ('soft_cluster_prob_10Hz', timestr, '.csv')))),
+                               index=True, chunksize=10000, encoding='utf-8')
+        href3 = f'<a href="data:file/csv;base64,{b64}">Download 10Hz Cluster Probability CSV File</a>'
+        st.markdown(href3, unsafe_allow_html=True)
+    st.balloons()
 #
 # if st.sidebar.checkbox('Behavioral structure visual analysis?', False):
 #     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_clusters.sav'))), 'rb') as fr:
