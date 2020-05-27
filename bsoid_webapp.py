@@ -104,7 +104,7 @@ if not last_run:
 #         st.error('Please enter a name for your variable file name prefix.')
     username = st.text_input('Enter name:')
     try:
-        os.mkdir(str.join('', ('/home', '/', username)))
+        os.system("sudo mkdir /home/username")
     except FileExistsError:
         st.error('This username exists.')
         if st.checkbox('Was that you?', False):
