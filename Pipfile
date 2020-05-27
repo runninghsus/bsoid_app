@@ -9,7 +9,7 @@ verify_ssl = true
 pandas = "*"
 tqdm = "*"
 matplotlib = "*"
-opencv-python-headless = "*"
+opencv-python = "*"
 ffmpeg-python = "*"
 seaborn = "*"
 scikit-learn = "*"
@@ -17,6 +17,7 @@ networkx = "*"
 umap-learn = "*"
 hdbscan = "*"
 streamlit = "*"
+opencv-python-headless = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"
