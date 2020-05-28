@@ -1,5 +1,6 @@
 import itertools
 import math
+import io
 
 import base64
 import ffmpeg
@@ -486,6 +487,10 @@ else:
         frame_dir = str.join('', (OUTPUT_PATH, '/pngs', '/', csvname))
         g = io.BytesIO(vid_file.read())  ## BytesIO Object
         vidname = st.text_input('Enter a name for video:')
+        try:
+            os.mkdir(str.join('', (OUTPUT_PATH, '/temp')))
+        except FileExistsError:
+            pass
         temporary_location = str.join('', (OUTPUT_PATH, '/temp', '/', vidname))
         with open(temporary_location, 'wb') as out:  ## Open temporary file as bytes
             out.write(g.read())  ## Read bytes into file
