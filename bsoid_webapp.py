@@ -133,7 +133,16 @@ if last_run:
         st.bar_chart(subllh_percent)
     st.markdown('**_CHECK POINT_**: Processed a total of **{}** CSV files, '
                 'and compiled into a **{}** data list.'.format(len(rawdata_li), training_data.shape))
+    st.write('This allows you to scroll through and visualize raw vs processed data.')
+    if st.checkbox("Show raw & processed data?", False):
+        try:
+            ID = int(st.number_input('Enter csv/data-list index:', min_value=1, max_value=len(rawdata_li), value=1))
+            st.write(rawdata_li[ID - 1])
+            st.write(training_data[ID - 1])
+        except:
+            pass
 
+        
 # Feature extraction + UMAP
 st.subheader('Perform __dimensionality reduction__ to improve clustering.')
 st.text_area('', '''
