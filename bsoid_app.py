@@ -251,7 +251,9 @@ if st.button("Start dimensionality reduction"):
             feats1_sc = scaler.transform(feats1.T).T
             f_10fps_sc = feats1_sc  # scaling is important as I've seen wildly different stdev/feat between sessions
     feats_train = f_10fps_sc.T
-    trained_umap = umap.UMAP(n_neighbors=int(round(np.sqrt(feats_train.shape[0]))),  # power law
+    # trained_umap = umap.UMAP(n_neighbors=int(round(np.sqrt(feats_train.shape[0]))),  # power law
+    #                          **UMAP_PARAMS).fit(feats_train)
+    trained_umap = umap.UMAP(n_neighbors=100,  # power law
                              **UMAP_PARAMS).fit(feats_train)
     umap_embeddings = trained_umap.embedding_
     st.info(
