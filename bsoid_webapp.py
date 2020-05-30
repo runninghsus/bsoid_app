@@ -106,7 +106,7 @@ if not last_run:
         my_bar = st.progress(0)
         for j in range(len(df)):
             curr_df_filt, perc_rect = adp_filt(df[j], BODYPARTS)
-            rawdata_li.append(curr_df)
+            rawdata_li.append(curr_df_filt)
             perc_rect_li.append(perc_rect)
             data_li.append(curr_df_filt)
             my_bar.progress(round((j + 1) / len(df) * 100))
@@ -142,7 +142,7 @@ if last_run:
         except:
             pass
 
-        
+
 # Feature extraction + UMAP
 st.subheader('Perform __dimensionality reduction__ to improve clustering.')
 st.text_area('', '''
@@ -242,6 +242,7 @@ if st.button("Start dimensionality reduction"):
 if last_run:
     with open(os.path.join(OUTPUT_PATH, str.join('', (MODEL_NAME, '_feats.sav'))), 'rb') as fr:
         f_10fps, f_10fps_sc, umap_embeddings = joblib.load(fr)
+    st.write(umap_embeddings)
     st.markdown('**_CHECK POINT_**: Done non-linear transformation of **{}** instances '
                 'from **{}** D into **{}** D.'.format(f_10fps_sc.shape[1], f_10fps_sc.shape[0],
                                                       umap_embeddings.shape[1]))
